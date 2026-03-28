@@ -28,12 +28,10 @@ export default async function handler(req, res) {
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.setHeader("X-Prerendered", "true");
       return res.status(200).send(html);
-    } catch (e) {
-      // fallback to origin
-    }
+    } catch (e) {}
   }
 
-  // ✅ USER → proxy to Lovable (SAFE VERSION)
+  // ✅ USER → PROXY (FIXED: STREAM RESPONSE)
   const originUrl = `https://embrace-web-spark.lovable.app${req.url}`;
 
   const proxyRes = await fetch(originUrl, {
@@ -41,31 +39,15 @@ export default async function handler(req, res) {
     headers: {
       "User-Agent": req.headers["user-agent"] || "",
       "Accept": req.headers["accept"] || "*/*",
-    },
-    redirect: "manual", // 🔥 CRITICAL: prevents infinite loop
+    }
   });
 
-  // 🔥 Handle redirect manually to prevent loop
-  if (proxyRes.status >= 300 && proxyRes.status < 400) {
-    const location = proxyRes.headers.get("location");
+  // 🔥 COPY ALL HEADERS
+  proxyRes.headers.forEach((value, key) => {
+    res.setHeader(key, value);
+  });
 
-    // 🚫 If redirect goes back to your domain → STOP LOOP
-    if (location && location.includes("justiceshieldlaw.com")) {
-      const body = await proxyRes.text();
-      res.setHeader("Content-Type", "text/html; charset=utf-8");
-      return res.status(200).send(body);
-    }
-
-    // ✅ Otherwise allow redirect
-    if (location) {
-      return res.redirect(location);
-    }
-  }
-
-  // ✅ Normal response
-  const contentType = proxyRes.headers.get("content-type") || "text/html";
-  const body = await proxyRes.text();
-
-  res.setHeader("Content-Type", contentType);
-  return res.status(proxyRes.status).send(body);
+  // 🔥 STREAM RESPONSE (CRITICAL FIX)
+  res.status(proxyRes.status);
+  proxyRes.body.pipe(res);
 }
