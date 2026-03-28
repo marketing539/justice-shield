@@ -28,26 +28,36 @@ export default async function handler(req, res) {
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.setHeader("X-Prerendered", "true");
       return res.status(200).send(html);
-    } catch (e) {}
+    } catch (e) {
+      console.error("Prerender failed:", e);
+    }
   }
 
-  // ✅ USER → PROXY (FIXED: STREAM RESPONSE)
+  // ✅ USER → proxy to Lovable (SAFE BUFFER VERSION)
   const originUrl = `https://embrace-web-spark.lovable.app${req.url}`;
 
-  const proxyRes = await fetch(originUrl, {
-    method: req.method,
-    headers: {
-      "User-Agent": req.headers["user-agent"] || "",
-      "Accept": req.headers["accept"] || "*/*",
-    }
-  });
+  try {
+    const proxyRes = await fetch(originUrl, {
+      method: req.method,
+      headers: {
+        "User-Agent": req.headers["user-agent"] || "",
+        "Accept": req.headers["accept"] || "*/*",
+      }
+    });
 
-  // 🔥 COPY ALL HEADERS
-  proxyRes.headers.forEach((value, key) => {
-    res.setHeader(key, value);
-  });
+    // Copy headers safely
+    proxyRes.headers.forEach((value, key) => {
+      if (key.toLowerCase() !== "content-encoding") {
+        res.setHeader(key, value);
+      }
+    });
 
-  // 🔥 STREAM RESPONSE (CRITICAL FIX)
-  res.status(proxyRes.status);
-  proxyRes.body.pipe(res);
+    // 🔥 THIS IS THE FIX
+    const buffer = await proxyRes.arrayBuffer();
+    return res.status(proxyRes.status).send(Buffer.from(buffer));
+
+  } catch (err) {
+    console.error("Proxy failed:", err);
+    return res.status(500).send("Proxy error");
+  }
 }
