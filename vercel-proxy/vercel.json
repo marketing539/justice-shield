@@ -1,5 +1,8 @@
 {
-  "rewrites": [
-    { "source": "/(.*)", "destination": "/api/proxy" }
+  "routes": [
+    {
+      "src": "/(.*)",
+      "dest": "/api/prerender"
+    }
   ]
 }
