@@ -6,7 +6,7 @@ const BOT_USER_AGENTS = [
   'petalbot', 'bytespider'
 ];
 
-export default async function handler(req, res) {
+module.exports = async function handler(req, res) {
   const userAgent = (req.headers['user-agent'] || '').toLowerCase();
   const isBot = BOT_USER_AGENTS.some(bot => userAgent.includes(bot));
   const path = req.url || '/';
@@ -25,4 +25,4 @@ export default async function handler(req, res) {
   } else {
     res.redirect(302, `https://embrace-web-spark.lovable.app${path}`);
   }
-}
+};
