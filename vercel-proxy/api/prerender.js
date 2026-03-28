@@ -36,28 +36,35 @@ export default async function handler(req, res) {
   // ✅ USER → proxy to Lovable (SAFE BUFFER VERSION)
   const originUrl = `https://embrace-web-spark.lovable.app${req.url}`;
 
-  try {
-    const proxyRes = await fetch(originUrl, {
-      method: req.method,
+const proxyRes = await fetch(originUrl, {
+  method: req.method,
+  headers: {
+    "User-Agent": req.headers["user-agent"] || "",
+    "Accept": req.headers["accept"] || "*/*",
+    "Host": "embrace-web-spark.lovable.app",           // 🔥 CRITICAL
+    "X-Forwarded-Host": "embrace-web-spark.lovable.app" // 🔥 CRITICAL
+  },
+  redirect: "manual" // 🔥 CRITICAL
+});
+
+// 🚫 STOP redirect loop
+if (proxyRes.status >= 300 && proxyRes.status < 400) {
+  const location = proxyRes.headers.get("location");
+
+  if (location && location.includes("justiceshieldlaw.com")) {
+    // Ignore redirect and fetch content again safely
+    const safeRes = await fetch(originUrl, {
       headers: {
         "User-Agent": req.headers["user-agent"] || "",
-        "Accept": req.headers["accept"] || "*/*",
+        "Host": "embrace-web-spark.lovable.app"
       }
     });
 
-    // Copy headers safely
-    proxyRes.headers.forEach((value, key) => {
-      if (key.toLowerCase() !== "content-encoding") {
-        res.setHeader(key, value);
-      }
-    });
+    const buffer = await safeRes.arrayBuffer();
+    return res.status(200).send(Buffer.from(buffer));
+  }
 
-    // 🔥 THIS IS THE FIX
-    const buffer = await proxyRes.arrayBuffer();
-    return res.status(proxyRes.status).send(Buffer.from(buffer));
-
-  } catch (err) {
-    console.error("Proxy failed:", err);
-    return res.status(500).send("Proxy error");
+  if (location) {
+    return res.redirect(location);
   }
 }
