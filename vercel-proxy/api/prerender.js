@@ -28,18 +28,17 @@ export default async function handler(req, res) {
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.setHeader("X-Prerendered", "true");
       return res.status(200).send(html);
-    } catch (e) {
-      // fallback to origin
-    }
+    } catch (e) {}
   }
 
-  // ✅ USER → proxy to Lovable origin (FIXED)
+  // ✅ USER → proxy to Lovable (NO LOOP)
   const originUrl = `https://embrace-web-spark.lovable.app${req.url}`;
 
   const proxyRes = await fetch(originUrl, {
     headers: {
       ...req.headers,
-      host: "embrace-web-spark.lovable.app", // 🔥 IMPORTANT
+      host: "embrace-web-spark.lovable.app",
+      "x-forwarded-host": "embrace-web-spark.lovable.app",
     },
   });
 
