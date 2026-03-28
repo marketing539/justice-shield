@@ -19,52 +19,30 @@ export default async function handler(req, res) {
     const prerenderUrl = `https://icrnlvwzgoohgzrilyih.supabase.co/functions/v1/prerender?path=/service-areas/${slug}`;
 
     try {
-      const response = await fetch(prerenderUrl, {
-        headers: { "User-Agent": userAgent }
-      });
-
+      const response = await fetch(prerenderUrl);
       const html = await response.text();
 
       res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.setHeader("X-Prerendered", "true");
       return res.status(200).send(html);
     } catch (e) {
-      console.error("Prerender failed:", e);
+      console.error("Prerender error:", e);
     }
   }
 
-  // ✅ USER → proxy to Lovable (SAFE BUFFER VERSION)
+  // ✅ USER → SIMPLE PROXY (NO LOOP LOGIC)
   const originUrl = `https://embrace-web-spark.lovable.app${req.url}`;
 
-const proxyRes = await fetch(originUrl, {
-  method: req.method,
-  headers: {
-    "User-Agent": req.headers["user-agent"] || "",
-    "Accept": req.headers["accept"] || "*/*",
-    "Host": "embrace-web-spark.lovable.app",           // 🔥 CRITICAL
-    "X-Forwarded-Host": "embrace-web-spark.lovable.app" // 🔥 CRITICAL
-  },
-  redirect: "manual" // 🔥 CRITICAL
-});
+  try {
+    const response = await fetch(originUrl);
 
-// 🚫 STOP redirect loop
-if (proxyRes.status >= 300 && proxyRes.status < 400) {
-  const location = proxyRes.headers.get("location");
+    const buffer = await response.arrayBuffer();
 
-  if (location && location.includes("justiceshieldlaw.com")) {
-    // Ignore redirect and fetch content again safely
-    const safeRes = await fetch(originUrl, {
-      headers: {
-        "User-Agent": req.headers["user-agent"] || "",
-        "Host": "embrace-web-spark.lovable.app"
-      }
-    });
-
-    const buffer = await safeRes.arrayBuffer();
+    res.setHeader("Content-Type", response.headers.get("content-type") || "text/html");
     return res.status(200).send(Buffer.from(buffer));
-  }
 
-  if (location) {
-    return res.redirect(location);
+  } catch (err) {
+    console.error("Proxy error:", err);
+    return res.status(500).send("Proxy failed");
   }
 }
