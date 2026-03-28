@@ -12,7 +12,7 @@ export default async function handler(req, res) {
 
   const slugMatch = req.url.match(/^\/service-areas\/([a-z0-9-]+)/);
 
-  // 👉 BOT → prerender
+  // ✅ BOT → prerender
   if (isBot && slugMatch) {
     const slug = slugMatch[1];
 
@@ -25,20 +25,27 @@ export default async function handler(req, res) {
 
       const html = await response.text();
 
-      res.setHeader("Content-Type", "text/html");
+      res.setHeader("Content-Type", "text/html; charset=utf-8");
       res.setHeader("X-Prerendered", "true");
       return res.status(200).send(html);
     } catch (e) {
-      // fallback
+      // fallback to origin
     }
   }
 
-  // 👉 DEFAULT → proxy to Lovable site
-  const originUrl = `https://justiceshieldlaw.com${req.url}`;
+  // ✅ USER → proxy to Lovable origin (FIXED)
+  const originUrl = `https://embrace-web-spark.lovable.app${req.url}`;
 
-  const proxyRes = await fetch(originUrl);
+  const proxyRes = await fetch(originUrl, {
+    headers: {
+      ...req.headers,
+      host: "embrace-web-spark.lovable.app", // 🔥 IMPORTANT
+    },
+  });
+
+  const contentType = proxyRes.headers.get("content-type") || "text/html";
   const body = await proxyRes.text();
 
-  res.setHeader("Content-Type", "text/html");
-  return res.status(200).send(body);
+  res.setHeader("Content-Type", contentType);
+  return res.status(proxyRes.status).send(body);
 }
