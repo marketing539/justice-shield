@@ -8,6 +8,16 @@ export default async function handler(req, res) {
   const userAgent = (req.headers["user-agent"] || "").toLowerCase();
   const isBot = BOT_USER_AGENTS.some(bot => userAgent.includes(bot));
 
+    // Serve sitemap.xml directly (no redirect)
+  if (req.url.split("?")[0] === "/sitemap.xml") {
+    const r = await fetch("https://icrnlvwzgoohgzrilyih.supabase.co/functions/v1/sitemap");
+    const xml = await r.text();
+    res.setHeader("Content-Type", "application/xml; charset=utf-8");
+    res.setHeader("Cache-Control", "public, max-age=3600, s-maxage=3600");
+    return res.status(r.status).send(xml);
+  }
+
+
   const slugMatch = req.url.match(/^\/service-areas\/([a-z0-9-]+)/);
 
   // ✅ BOT → prerender
